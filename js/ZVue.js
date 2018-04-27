@@ -198,13 +198,13 @@ class ZVue{
 // 负责更新视图
 class Watcher{
 	constructor(name, dom, vm, vmDataVal, domAttr, index, replaces, template){
-		this.name = name  // render类型
+		this.name = name  // render类型判断
 		this.dom = dom  // 绑定的dom元素
 		this.vm = vm  // 指向ZVue的指针
-		this.vmDataVal = vmDataVal  // vue中的Data对应的数值属性或对象属性
+		this.vmDataVal = vmDataVal  // ZVue中的Data对应的数值属性或对象属性
 		this.domAttr = domAttr  // dom的更新属性值，如vale,innerHTML等
 		this.index = index  // 数组的当前索引
-		this.replaces = replaces // 遍历数组,原dom的innerHTML字符串里替换的{idx,val}
+		this.replaces = replaces // 原dom的innerHTML里替换插值表达式的key{idx,val}
 		this.update()
 	}
 	// 根据dom字符串，动态组装出包含标签、类名、内容以及自定义指令的dom模板
@@ -248,30 +248,32 @@ class Watcher{
 	}
 	// 更新数组类型的视图片段
 	update_Array(vmData){
-		// 如果render属于数组列表，则动态批量删除/添加dom
+		// 如果render属于迭代数组列表，则动态批量删除/添加dom
 		if(this.name === 'list'){
 			this.deleteBatchDom()  // 动态批量删除dom
-			this.addBatchDom()  // // 动态批量添加dom
+			this.addBatchDom()  // 动态批量添加dom
 		}
 		// 如果render属于数组项，则更新dom中的值
 		else if(this.name === 'text'){
-			// 替换插值表达式
-			let idx_temp = `{{${this.replaces['idx']}}}`
-			let value_temp = `{{${this.replaces['val']}}}`
+			let idx_temp = `{{${this.replaces['idx']}}}`  // 插值表达式中的索引真实值
+			let value_temp = `{{${this.replaces['val']}}}`  // 插值表达式中的数值真实值
 			let domStr = this.vm._template[this.dom.parentNode.getAttribute('v-data')]
-			this.dom[this.domAttr] = domStr.match(/>(.*?)</)[1]
-			this.dom[this.domAttr] = this.dom[this.domAttr].replace(value_temp, vmData[this.index]).replace(idx_temp, this.index)
+			this.dom[this.domAttr] = domStr.match(/>(.*?)</)[1]  // 初始化dom的值为模板中的插值表达式
+			// 替换插值表达式
+			this.dom[this.domAttr] = this.dom[this.domAttr].
+					replace(value_temp, vmData[this.index]).
+					replace(idx_temp, this.index)
 		}
 	}
 	// 更新普通标签中的视图片段
 	update_Text(vmData){
 		this.dom[this.domAttr] = vmData
 	}
-	// set钩子里触发，负责通知属性对应的更新函数来刷新视图
+	// set钩子来触发，负责通知该属性对应的更新函数来刷新视图
 	update(){
 		let vmData = this.vm.$data[this.vmDataVal]
 		if(Array.isArray(vmData)){
-			this.update_Array(vmData)
+			this.update_Array(vmData)  // 如果是数组类型，调用数组的更新方法
 		}else{
 			this.update_Text(vmData)
 		}
@@ -282,14 +284,14 @@ class Watcher{
 // 重载数组的变异方法
 class NewArray extends Array{
 	constructor(){
-		if(arguments.length === 1){return super()}
-		let args = arguments[0]
+		if(arguments.length === 1){return super()}  // 产生中间数组会再进入构造方法
+		let args = arguments[0]  // 原数组
 		args.length === 1 ? super(args[0].toString()) : super(...args)
-		this.callback = arguments[1]
+		this.callback = arguments[1]  // 注入回调具名函数
 	}
 	push(...args){
 		super.push(...args) 
-		this.callback(this, this.callback.name)  // 切面调用ZVue的回调函数
+		this.callback(this, this.callback.name)  // 切面调用具名回调函数
 	}
 	pop(){
 		super.pop() 
